@@ -63,7 +63,7 @@ const average = (arr) =>
 const KEY_API = "76932c8";
 
 export default function App() {
-  const [query, setQuery] = useState("Inception");
+  const [query, setQuery] = useState("");
   const [movies, setMovies] = useState(tempMovieData);
   const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,6 +92,9 @@ export default function App() {
   // using useEffect hook
   useEffect(
     function () {
+      // AbortController browser API
+      const controller = new AbortController();
+
       // the useEffect callback is synchronous to prevent race conditions, so it can not return a promise
       // for this reason passing new asynch function inside fetchMovies()
       // wrap asynch func inside try catch block to get errors
@@ -104,8 +107,10 @@ export default function App() {
           setErrorMessage("");
 
           // try to fetch data
+          // as second argument of fetch func passing the object with singal property connected to the controller (AbortController)
           const response = await fetch(
-            `http://www.omdbapi.com/?apikey=${KEY_API}&s=${query}`
+            `http://www.omdbapi.com/?apikey=${KEY_API}&s=${query}`,
+            { signal: controller.signal }
           );
 
           // guard clause (for fetching)
@@ -115,15 +120,21 @@ export default function App() {
           // if response is ok convert from json
           const data = await response.json();
 
-          // guard clase (if there is no movie ofr query)
+          // guard clause (if there is no movie from query)
           if (data.Response === "False") {
             throw new Error("Movie not found...");
           }
 
           // if everything is ok update movies state
           setMovies(data.Search);
+
+          // also resetting error
+          setErrorMessage("");
         } catch (err) {
-          setErrorMessage(() => err.message);
+          // setting error function only if error is different of AbortError caused when aborting the fetch in cleanup func
+          if (err.name !== "AbortError") {
+            setErrorMessage(() => err.message);
+          }
         } finally {
           // loading state is OFF
           setIsLoading(false);
@@ -137,6 +148,13 @@ export default function App() {
       }
       // indeed also call the asynch function
       fetchMovies();
+
+      // returning the clean up function
+      return function () {
+        // aborting the fetch request inside the useEffect cleanup function using the AbortController
+        // Remember: when the request is canceled JS sees it like an error, so adjusted try catch blocks
+        controller.abort();
+      };
     },
     // arrau with a list of dependencies which, when change, will run the effect
     // NOTE: every state variable and prop used inside the effect MUST be included in the dependency array
@@ -405,6 +423,40 @@ function MovieDetails({ movieId, onCloseMovie, onAddWatched, watched }) {
     },
     [movieId]
   );
+
+  useEffect(() => {
+    // using hook to be able to use vanilla JS
+
+    // declaring the callbakc function
+    const callbackEsc = function (event) {
+      if (event.code === `Escape`) {
+        console.log(`escaping`);
+        onCloseMovie();
+      }
+    };
+
+    // attaching event listener
+    document.addEventListener(`keydown`, callbackEsc);
+
+    // returning a cleanup function to remove event listener,
+    // overwise a new one will be attached everytime the component code runs
+    return function () {
+      document.removeEventListener(`keydown`, callbackEsc);
+    };
+
+    // adding the outside function as dependency
+  }, [onCloseMovie]);
+
+  // effect to change website title when title changes
+  useEffect(() => {
+    if (!title) return;
+    document.title = `Movie | ${title}`;
+
+    // clean up function to reset the website title
+    return function () {
+      document.title = `usePopcorn`;
+    };
+  }, [title]);
 
   function handleAdd() {
     const newWatchedMovie = {
