@@ -1,7 +1,7 @@
 // ----- Imports ----- //
 
 import { click } from "@testing-library/user-event/dist/click";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRatingComponent";
 
 // ----- Example data ----- //
@@ -63,12 +63,20 @@ const average = (arr) =>
 const KEY_API = "76932c8";
 
 export default function App() {
+  // ----- STATE ----- //
+
   const [query, setQuery] = useState("");
-  const [movies, setMovies] = useState(tempMovieData);
-  const [watched, setWatched] = useState([]);
+  const [movies, setMovies] = useState([]);
+  // passing a callback (don't calling it) to get the initial state from local
+  const [watched, setWatched] = useState(function () {
+    const localMoviesSTR = localStorage.getItem("watchedMovies");
+    return JSON.parse(localMoviesSTR);
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [currentMovieId, setCurrentMovieId] = useState(null);
+
+  // ----- HANDLER FUNCTIONS ----- //
 
   function handleRemoveWatchedMovie(id) {
     setWatched((watchedMovies) =>
@@ -88,6 +96,16 @@ export default function App() {
   function handleAddWatchedMovie(newMovie) {
     setWatched((actualArray) => [...actualArray, newMovie]);
   }
+
+  // ----- EFFECTS ----- //
+
+  useEffect(
+    function () {
+      // storing into local storage the list of watched movies everytime state (watched) chages
+      localStorage.setItem("watchedMovies", JSON.stringify(watched));
+    },
+    [watched]
+  );
 
   // using useEffect hook
   useEffect(
@@ -234,6 +252,16 @@ function Logo() {
 }
 
 function Search({ query, setQuery }) {
+  // 1. creating a ref and passing 'null' as initial value (usually 'null' when working with DOM elements)
+  const searchInputEl = useRef(null);
+
+  // 3. using ref
+  useEffect(function () {
+    // searchInputEl.current = is the DOM element
+    // calling focus() method on DOM element to automatically focus it on 1st render
+    searchInputEl.current.focus();
+  }, []);
+
   return (
     <input
       className="search"
@@ -241,6 +269,8 @@ function Search({ query, setQuery }) {
       placeholder="Search movies..."
       value={query}
       onChange={(e) => setQuery(e.target.value)}
+      // 2. use 'ref' prop to connect a ref in a declarative way
+      ref={searchInputEl}
     />
   );
 }
