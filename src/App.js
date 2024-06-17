@@ -256,11 +256,30 @@ function Search({ query, setQuery }) {
   const searchInputEl = useRef(null);
 
   // 3. using ref
-  useEffect(function () {
-    // searchInputEl.current = is the DOM element
-    // calling focus() method on DOM element to automatically focus it on 1st render
-    searchInputEl.current.focus();
-  }, []);
+  useEffect(
+    function () {
+      function callbackFn(e) {
+        // if search field is already focused just return
+        if (document.activeElement === searchInputEl.current) return;
+
+        // when press Enter empty search field and focus on it
+        if (e.code === `Enter`) {
+          setQuery("");
+          // searchInputEl.current = is the DOM element
+          // calling focus() method on DOM element to automatically focus it on 1st render
+
+          searchInputEl.current.focus();
+        }
+      }
+
+      document.addEventListener(`keydown`, callbackFn);
+
+      return () => {
+        document.addEventListener(`keydown`, callbackFn);
+      };
+    },
+    [setQuery]
+  );
 
   return (
     <input
@@ -344,15 +363,15 @@ function WatchedMoviesSummury({ watchedMovies }) {
         </p>
         <p>
           <span>⭐️</span>
-          <span>{avgImdbRating}</span>
+          <span>{avgImdbRating.toFixed(2)}</span>
         </p>
         <p>
           <span>🌟</span>
-          <span>{avgUserRating}</span>
+          <span>{avgUserRating.toFixed(2)}</span>
         </p>
         <p>
           <span>⏳</span>
-          <span>{avgRuntime} min</span>
+          <span>{avgRuntime.toFixed(2)} min</span>
         </p>
       </div>
     </div>
@@ -407,6 +426,16 @@ function MovieDetails({ movieId, onCloseMovie, onAddWatched, watched }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [userRating, setUserRating] = useState("");
+
+  const countChoiseRaiting = useRef(0);
+
+  // change count of how many times user changes raiting before add film in the list
+  useEffect(
+    function () {
+      if (userRating) countChoiseRaiting.current++;
+    },
+    [userRating]
+  );
 
   const isMovieInList = watched.map((movie) => movie.imdbID).includes(movieId);
 
@@ -497,6 +526,7 @@ function MovieDetails({ movieId, onCloseMovie, onAddWatched, watched }) {
       runtime: Number(runtime.split(" ").at(0)),
       imdbRating: Number(imdbRating),
       userRating,
+      timesChangedChoiceRaiting: countChoiseRaiting.current,
     };
 
     onAddWatched(newWatchedMovie);
