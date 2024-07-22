@@ -60,7 +60,7 @@ const average = (arr) =>
 
 // ----- App Main ----- //
 
-const KEY_API = "76932c8";
+const KEY_API = "example_Key";
 
 export default function App() {
   // ----- STATE ----- //
